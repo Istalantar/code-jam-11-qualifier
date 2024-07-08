@@ -1,4 +1,6 @@
 from enum import auto, StrEnum
+from warnings import warn
+
 
 MAX_QUOTE_LENGTH = 50
 
@@ -18,16 +20,60 @@ class DuplicateError(Exception):
 # Implement the class and function below
 class Quote:
     def __init__(self, quote: str, mode: "VariantMode") -> None:
-        self.quote = ...
-        self.mode = ...
+        self.quote = quote
+        self.mode = mode
+        self.transformed_quote = self._create_variant()
 
     def __str__(self) -> str:
-        ...
+        return self.transformed_quote
 
     def _create_variant(self) -> str:
         """
         Transforms the quote to the appropriate variant indicated by `self.mode` and returns the result
         """
+        if self.quote[0] in '"“' and self.quote[-1] in '"”':
+            quote = self.quote[1:-1]
+        else:
+            quote = self.quote
+
+        if len(quote) > MAX_QUOTE_LENGTH:
+            raise ValueError("Quote is too long")
+
+        if self.mode == VariantMode.NORMAL:
+            # Nothing to do for normal variant
+            pass
+        elif self.mode == VariantMode.UWU:
+            is_transformable = False
+            for val in ['L', 'l', 'R', 'r', ' U', ' u']:
+                if val in quote:
+                    is_transformable = True
+            if not is_transformable:
+                raise ValueError('Quote was not modified')
+            quote = quote.replace('L', 'W')
+            quote = quote.replace('l', 'w')
+            quote = quote.replace('R', 'W')
+            quote = quote.replace('r', 'w')
+            quote_full = quote.replace(' U', ' U-U')
+            quote_full = quote_full.replace(' u', ' u-u')
+            if len(quote_full) > MAX_QUOTE_LENGTH:
+                warn("Quote too long, only partially transformed")
+            else:
+                quote = quote_full
+        elif self.mode == VariantMode.PIGLATIN:
+            temp_quote = ''
+            for word in quote.lower().split():
+                if word[0] in 'aeiou':
+                    temp_quote += f'{word}way '
+                else:
+                    for i, char in enumerate(word):
+                        if char in 'aeiou':
+                            temp_quote += f'{word[i:]}{word[:i]}ay '
+                            break
+            if len(temp_quote) > MAX_QUOTE_LENGTH:
+                raise ValueError("Quote was not modified")
+            quote = temp_quote.capitalize().strip()
+
+        return quote
 
 
 def run_command(command: str) -> None:
@@ -41,7 +87,34 @@ def run_command(command: str) -> None:
         - `quote list` - print a formatted string that lists the current
            quotes to be displayed in discord flavored markdown
     """
-    ...
+    database = Database()
+    search_words = {1: 'quote ', 2: 'quote uwu ', 3: 'quote piglatin ', 4: 'quote list'}
+
+    quote: str
+    mode: VariantMode | None
+    if command.startswith(search_words[2]):
+        quote = command[len(search_words[2]):].strip()
+        mode = VariantMode.UWU
+    elif command.startswith(search_words[3]):
+        quote = command[len(search_words[3]):].strip()
+        mode = VariantMode.PIGLATIN
+    elif command.startswith(search_words[4]):
+        quote = command[len(search_words[4]):].strip()
+        mode = None
+    elif command.startswith(search_words[1]):
+        # Normal quote must be checked last, otherwise all elifs would be skipped
+        quote = command[len(search_words[1]):].strip()
+        mode = VariantMode.NORMAL
+    else:
+        raise ValueError("Invalid command")
+
+    if mode is not None:
+        try:
+            Database.add_quote(Quote(quote, mode))
+        except DuplicateError:
+            print("Quote has already been added previously")
+    else:
+        print('- ' + '\n- '.join(Database.get_quotes()))
 
 
 # The code below is available for you to use
