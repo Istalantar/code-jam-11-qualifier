@@ -1,6 +1,6 @@
-from enum import auto, StrEnum
+import shlex
+from enum import StrEnum, auto
 from warnings import warn
-
 
 MAX_QUOTE_LENGTH = 50
 
@@ -31,10 +31,7 @@ class Quote:
         """
         Transforms the quote to the appropriate variant indicated by `self.mode` and returns the result
         """
-        if self.quote[0] in '"“' and self.quote[-1] in '"”':
-            quote = self.quote[1:-1]
-        else:
-            quote = self.quote
+        quote = self.quote
 
         if len(quote) > MAX_QUOTE_LENGTH:
             raise ValueError("Quote is too long")
@@ -87,24 +84,19 @@ def run_command(command: str) -> None:
         - `quote list` - print a formatted string that lists the current
            quotes to be displayed in discord flavored markdown
     """
-    database = Database()
-    search_words = {1: 'quote ', 2: 'quote uwu ', 3: 'quote piglatin ', 4: 'quote list'}
+    command = command.replace("“", '"').replace("”", '"')
 
-    quote: str
+    quote = ''
     mode: VariantMode | None
-    if command.startswith(search_words[2]):
-        quote = command[len(search_words[2]):].strip()
-        mode = VariantMode.UWU
-    elif command.startswith(search_words[3]):
-        quote = command[len(search_words[3]):].strip()
-        mode = VariantMode.PIGLATIN
-    elif command.startswith(search_words[4]):
-        quote = command[len(search_words[4]):].strip()
+    command = shlex.split(command)
+    if command[1] == 'list':
         mode = None
-    elif command.startswith(search_words[1]):
-        # Normal quote must be checked last, otherwise all elifs would be skipped
-        quote = command[len(search_words[1]):].strip()
+    elif len(command) == 2:
         mode = VariantMode.NORMAL
+        quote = command[1]
+    elif len(command) == 3:
+        mode = VariantMode(command[1])
+        quote = command[2]
     else:
         raise ValueError("Invalid command")
 
